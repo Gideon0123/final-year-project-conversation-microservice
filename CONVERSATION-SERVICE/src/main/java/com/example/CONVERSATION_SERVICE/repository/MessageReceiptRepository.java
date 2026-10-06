@@ -129,4 +129,8 @@ public interface MessageReceiptRepository
             @Param("userId")
             Long userId
     );
+
+    Optional<MessageReceipt> findByMessageId(
+            Long messageId
+    );
 }

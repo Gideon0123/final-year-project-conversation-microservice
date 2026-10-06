@@ -16,6 +16,11 @@ public interface ConversationService {
             Long currentUserId
     );
 
+    Long getOtherParticipant(
+            Long conversationId,
+            Long currentUserId
+    );
+
     List<ConversationResponse> getUserConversations(
             Long currentUserId
     );

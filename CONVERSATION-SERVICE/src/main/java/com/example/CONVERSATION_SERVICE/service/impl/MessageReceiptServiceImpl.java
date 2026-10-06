@@ -20,8 +20,7 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class MessageReceiptServiceImpl
-        implements MessageReceiptService {
+public class MessageReceiptServiceImpl implements MessageReceiptService {
 
     private final MessageReceiptRepository messageReceiptRepository;
 
@@ -236,6 +235,20 @@ public class MessageReceiptServiceImpl
         }
 
         return result;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public MessageReceipt findReceiptForStatusNotification(
+            Long messageId
+    ) {
+        /*
+         * There is exactly one receipt per message because every
+         * private message has exactly one recipient.
+         *
+         * We therefore need a repository lookup by message ID.
+         */
+        return messageReceiptRepository.findByMessageId(messageId).orElse(null);
     }
 
     @Override

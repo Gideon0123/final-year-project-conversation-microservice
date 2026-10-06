@@ -1,98 +1,45 @@
 package com.example.CONVERSATION_SERVICE.controller;
 
-import com.example.CONVERSATION_SERVICE.dto.MessageResponse;
-import com.example.CONVERSATION_SERVICE.dto.SendMessageRequest;
-import com.example.CONVERSATION_SERVICE.dto.SendMessageResult;
-import com.example.CONVERSATION_SERVICE.dto.StompErrorResponse;
+import com.example.CONVERSATION_SERVICE.dto.*;
+import com.example.CONVERSATION_SERVICE.entity.MessageReceipt;
 import com.example.CONVERSATION_SERVICE.exception.CollaborationRequiredException;
 import com.example.CONVERSATION_SERVICE.exception.CollaborationServiceUnavailableException;
 import com.example.CONVERSATION_SERVICE.exception.ConversationAccessDeniedException;
 import com.example.CONVERSATION_SERVICE.exception.ResourceNotFoundException;
+import com.example.CONVERSATION_SERVICE.service.MessageDeliveryService;
+import com.example.CONVERSATION_SERVICE.service.MessageReceiptService;
 import com.example.CONVERSATION_SERVICE.service.MessageService;
 
 import lombok.RequiredArgsConstructor;
-
 import org.springframework.messaging.handler.annotation.DestinationVariable;
-import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
-import java.time.LocalDateTime;
 
 @Controller
 @RequiredArgsConstructor
 public class MessageStompController {
 
     private final MessageService messageService;
-
-    private final SimpMessagingTemplate
-            messagingTemplate;
+    private final MessageReceiptService messageReceiptService;
+    private final MessageDeliveryService messageDeliveryService;
 
     @MessageMapping(
             "/conversations/{conversationId}/messages"
     )
     public void sendMessage(
-            @DestinationVariable("conversationId")
-            Long conversationId,
-
+            @DestinationVariable Long conversationId,
             SendMessageRequest request,
-
             Principal principal
     ) {
 
-        if (principal == null) {
-
-            throw new ConversationAccessDeniedException(
-                    "Authenticated user is required"
-            );
-        }
-
         Long senderId =
-                extractUserId(principal);
+                Long.parseLong(
+                        principal.getName()
+                );
 
-        System.out.println();
-        System.out.println(
-                "=========================================="
-        );
-        System.out.println(
-                "       STOMP MESSAGE RECEIVED"
-        );
-        System.out.println(
-                "=========================================="
-        );
-
-        System.out.println(
-                "Conversation ID: "
-                        + conversationId
-        );
-
-        System.out.println(
-                "Sender ID: "
-                        + senderId
-        );
-
-        System.out.println(
-                "Content: "
-                        + request.content()
-        );
-
-        System.out.println(
-                "=========================================="
-        );
-        System.out.println();
-
-        /*
-         * This is the authoritative business operation.
-         *
-         * If the conversation doesn't exist,
-         * ResourceNotFoundException is thrown.
-         *
-         * If the user isn't a participant,
-         * ConversationAccessDeniedException is thrown.
-         */
         SendMessageResult result =
                 messageService.sendMessage(
                         conversationId,
@@ -100,135 +47,161 @@ public class MessageStompController {
                         request.content()
                 );
 
-        MessageResponse response = result.message();
-
-        Long recipientId = result.recipientId();
-
-        messagingTemplate.convertAndSendToUser(
-                recipientId.toString(),
-                "/queue/messages",
-                response
-        );
-
-        messagingTemplate.convertAndSendToUser(
-                senderId.toString(),
-                "/queue/messages",
-                response
-        );
+        /*
+         * Persisted message already exists.
+         *
+         * Now attempt real-time delivery.
+         *
+         * If recipient is offline, nothing is pushed.
+         * The message remains in MySQL with deliveredAt = null.
+         */
+        messageDeliveryService
+                .publishLiveMessage(
+                        result,
+                        senderId
+                );
     }
 
-    @MessageExceptionHandler(
-            ResourceNotFoundException.class
+    @MessageMapping(
+            "/conversations/{conversationId}/messages/{messageId}/delivered"
     )
-    public void handleResourceNotFound(
-            ResourceNotFoundException exception,
+    public void markDelivered(
+            @DestinationVariable Long conversationId,
+            @DestinationVariable Long messageId,
             Principal principal
     ) {
 
-        sendError(
-                principal,
-                "CONVERSATION_NOT_FOUND",
-                exception.getMessage()
-        );
-    }
+        Long userId =
+                Long.parseLong(
+                        principal.getName()
+                );
 
-    @MessageExceptionHandler(
-            ConversationAccessDeniedException.class
-    )
-    public void handleConversationAccessDenied(
-            ConversationAccessDeniedException exception,
-            Principal principal
-    ) {
-
-        sendError(
-                principal,
-                "CONVERSATION_ACCESS_DENIED",
-                exception.getMessage()
-        );
-    }
-
-    @MessageExceptionHandler(
-            CollaborationRequiredException.class
-    )
-    public void handleCollaborationRequired(
-            CollaborationRequiredException exception,
-            Principal principal
-    ) {
-
-        sendError(
-                principal,
-                "COLLABORATION_REQUIRED",
-                exception.getMessage()
-        );
-    }
-
-    @MessageExceptionHandler(
-            CollaborationServiceUnavailableException.class
-    )
-    public void handleCollaborationServiceUnavailable(
-            CollaborationServiceUnavailableException exception,
-            Principal principal
-    ) {
-
-        sendError(
-                principal,
-                "COLLABORATION_SERVICE_UNAVAILABLE",
-                "Unable to verify your collaboration relationship right now."
-        );
-    }
-
-    @MessageExceptionHandler(
-            Exception.class
-    )
-    public void handleUnexpectedException(
-            Exception exception,
-            Principal principal
-    ) {
-
-        sendError(
-                principal,
-                "MESSAGE_SEND_FAILED",
-                "Unable to process the message."
-        );
+        MessageReceipt receipt =
+                messageReceiptService.markDelivered(
+                        conversationId,
+                        messageId,
+                        userId
+                );
 
         /*
-         * Keep the actual exception in server logs.
-         * Do NOT expose internal exception details
-         * to the client.
+         * Tell the sender that the recipient has actually
+         * received the message.
          */
-        exception.printStackTrace();
+        messageDeliveryService
+                .notifySenderOfStatus(
+                        receipt
+                );
     }
 
-    private void sendError(
-            Principal principal,
-            String code,
-            String message
+    @MessageMapping(
+            "/conversations/{conversationId}/messages/{messageId}/read"
+    )
+    public void markRead(
+            @DestinationVariable Long conversationId,
+            @DestinationVariable Long messageId,
+            Principal principal
     ) {
 
-        if (principal == null) {
+        Long userId =
+                Long.parseLong(
+                        principal.getName()
+                );
+
+        MessageReceipt receipt =
+                messageReceiptService.markRead(
+                        conversationId,
+                        messageId,
+                        userId
+                );
+
+        messageDeliveryService
+                .notifySenderOfStatus(
+                        receipt
+                );
+    }
+
+    @MessageMapping(
+            "/conversations/{conversationId}/read"
+    )
+    public void markConversationRead(
+            @DestinationVariable Long conversationId,
+            Principal principal
+    ) {
+
+        Long userId =
+                Long.parseLong(
+                        principal.getName()
+                );
+
+        ConversationReadResult result =
+                messageReceiptService
+                        .markConversationRead(
+                                conversationId,
+                                userId
+                        );
+
+        /*
+         * We need the sender/counterpart to notify.
+         * Because conversations are private 1-to-1, the sender
+         * is the other participant.
+         *
+         * MessageReceiptService can return this directly later;
+         * for now derive it from the first message if available.
+         */
+        Long senderId =
+                result.messageIds().isEmpty()
+                        ? null
+                        : messageService
+                        .findSenderForConversationRead(
+                                conversationId,
+                                userId
+                        );
+
+        if (senderId != null) {
+            messageDeliveryService
+                    .notifySenderConversationRead(
+                            result,
+                            senderId
+                    );
+        }
+    }
+
+    @MessageMapping("/conversations/sync")
+    public void synchronize(
+            Principal principal,
+            SimpMessageHeaderAccessor accessor
+    ) {
+
+        Long userId =
+                Long.parseLong(
+                        principal.getName()
+                );
+
+        String sessionId =
+                accessor.getSessionId();
+
+        if (sessionId == null) {
             return;
         }
 
-        StompErrorResponse response =
-                new StompErrorResponse(
-                        code,
-                        message,
-                        LocalDateTime.now()
+        int synchronizedMessages =
+                messageDeliveryService
+                        .synchronizeUndeliveredMessages(
+                                userId,
+                                sessionId
+                        );
+
+        /*
+         * Optional synchronization summary.
+         */
+        SyncResponse response =
+                new SyncResponse(
+                        synchronizedMessages
                 );
 
-        messagingTemplate.convertAndSendToUser(
-                principal.getName(),
-                "/queue/errors",
-                response
-        );
-    }
-
-    private Long extractUserId(
-            Principal principal
-    ) {
-
-        return Long.parseLong(
-                principal.getName()
-        );
+        /*
+         * This can be sent to the specific reconnecting session.
+         */
+        // implement via messageDeliveryService if desired
     }
 }

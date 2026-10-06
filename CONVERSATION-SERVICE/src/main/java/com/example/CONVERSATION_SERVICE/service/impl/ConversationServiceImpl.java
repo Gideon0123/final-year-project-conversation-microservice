@@ -20,8 +20,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class ConversationServiceImpl
-        implements ConversationService {
+public class ConversationServiceImpl implements ConversationService {
 
     private final ConversationRepository conversationRepository;
     private final ConversationMapper conversationMapper;
@@ -106,6 +105,41 @@ public class ConversationServiceImpl
         return conversationMapper.toResponse(
                 conversation
         );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Long getOtherParticipant(
+            Long conversationId,
+            Long currentUserId
+    ) {
+
+        Conversation conversation =
+                conversationRepository
+                        .findById(conversationId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Conversation with ID "
+                                                + conversationId
+                                                + " not found"
+                                )
+                        );
+
+        verifyParticipant(
+                conversation,
+                currentUserId
+        );
+
+        if (conversation
+                .getParticipantOneId()
+                .equals(currentUserId)) {
+
+            return conversation
+                    .getParticipantTwoId();
+        }
+
+        return conversation
+                .getParticipantOneId();
     }
 
     @Override

@@ -50,6 +50,10 @@ public interface MessageReceiptService {
             Long userId
     );
 
+    MessageReceipt findReceiptForStatusNotification(
+            Long messageId
+    );
+
     List<MessageReceipt> getUndeliveredMessages(
             Long userId
     );
