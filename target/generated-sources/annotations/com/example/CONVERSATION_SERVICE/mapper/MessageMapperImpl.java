@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2026-10-05T12:37:09+0100",
+    date = "2026-10-06T02:24:13+0100",
     comments = "version: 1.6.3, compiler: javac, environment: Java 21.0.11 (Oracle Corporation)"
 )
 @Component
@@ -33,7 +33,11 @@ public class MessageMapperImpl implements MessageMapper {
         content = message.getContent();
         createdAt = message.getCreatedAt();
 
-        MessageResponse messageResponse = new MessageResponse( id, conversationId, senderId, content, createdAt );
+        Long recipientId = null;
+        LocalDateTime deliveredAt = null;
+        LocalDateTime readAt = null;
+
+        MessageResponse messageResponse = new MessageResponse( id, conversationId, senderId, content, createdAt, recipientId, deliveredAt, readAt );
 
         return messageResponse;
     }

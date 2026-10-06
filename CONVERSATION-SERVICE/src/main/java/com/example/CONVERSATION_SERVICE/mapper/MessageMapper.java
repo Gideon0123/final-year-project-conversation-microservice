@@ -13,7 +13,17 @@ public interface MessageMapper {
             target = "conversationId",
             source = "conversation.id"
     )
-    MessageResponse toResponse(
-            Message message
-    );
+    @Mapping(
+            target = "recipientId",
+            ignore = true
+    )
+    @Mapping(
+            target = "deliveredAt",
+            ignore = true
+    )
+    @Mapping(
+            target = "readAt",
+            ignore = true
+    )
+    MessageResponse toResponse(Message message);
 }
