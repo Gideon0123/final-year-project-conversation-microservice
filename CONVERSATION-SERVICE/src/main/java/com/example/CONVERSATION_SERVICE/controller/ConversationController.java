@@ -32,11 +32,10 @@ public class ConversationController {
     ) {
         Long currentUserId = extractUserId(principal);
 
-        ConversationResponse response =
-                conversationService.createConversation(
-                        currentUserId,
-                        request.participantId()
-                );
+        ConversationResponse response = conversationService.createConversation(
+                currentUserId,
+                request.participantId()
+        );
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -79,11 +78,7 @@ public class ConversationController {
     public ResponseEntity<?> getUnreadCount(
             Principal principal
     ) {
-
-        Long userId =
-                Long.parseLong(
-                        principal.getName()
-                );
+        Long userId = Long.parseLong(principal.getName());
 
         long unread = messageReceiptService.getUnreadCount(userId);
 

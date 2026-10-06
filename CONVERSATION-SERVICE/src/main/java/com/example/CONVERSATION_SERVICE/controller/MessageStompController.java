@@ -32,7 +32,6 @@ public class MessageStompController {
             SendMessageRequest request,
             Principal principal
     ) {
-
         Long senderId = conversationService.getOtherParticipant(
                 conversationId, Long.parseLong(principal.getName())
         );
@@ -67,26 +66,23 @@ public class MessageStompController {
             Principal principal
     ) {
 
-        Long userId =
-                Long.parseLong(
-                        principal.getName()
-                );
+        Long userId = Long.parseLong(
+                principal.getName()
+        );
 
-        MessageReceipt receipt =
-                messageReceiptService.markDelivered(
-                        conversationId,
-                        messageId,
-                        userId
-                );
+        MessageReceipt receipt = messageReceiptService.markDelivered(
+                conversationId,
+                messageId,
+                userId
+        );
 
         /*
          * Tell the sender that the recipient has actually
          * received the message.
          */
-        messageDeliveryService
-                .notifySenderOfStatus(
-                        receipt
-                );
+        messageDeliveryService.notifySenderOfStatus(
+                receipt
+        );
     }
 
     @MessageMapping(
@@ -98,22 +94,17 @@ public class MessageStompController {
             Principal principal
     ) {
 
-        Long userId =
-                Long.parseLong(
-                        principal.getName()
-                );
+        Long userId = Long.parseLong(principal.getName());
 
-        MessageReceipt receipt =
-                messageReceiptService.markRead(
-                        conversationId,
-                        messageId,
-                        userId
-                );
+        MessageReceipt receipt = messageReceiptService.markRead(
+                conversationId,
+                messageId,
+                userId
+        );
 
-        messageDeliveryService
-                .notifySenderOfStatus(
-                        receipt
-                );
+        messageDeliveryService.notifySenderOfStatus(
+                receipt
+        );
     }
 
     @MessageMapping(
@@ -124,17 +115,12 @@ public class MessageStompController {
             Principal principal
     ) {
 
-        Long userId =
-                Long.parseLong(
-                        principal.getName()
-                );
+        Long userId = Long.parseLong(principal.getName());
 
-        ConversationReadResult result =
-                messageReceiptService
-                        .markConversationRead(
-                                conversationId,
-                                userId
-                        );
+        ConversationReadResult result = messageReceiptService.markConversationRead(
+                conversationId,
+                userId
+        );
 
         /*
          * We need the sender/counterpart to notify.
@@ -162,32 +148,23 @@ public class MessageStompController {
             Principal principal,
             SimpMessageHeaderAccessor accessor
     ) {
+        Long userId = Long.parseLong(principal.getName());
 
-        Long userId =
-                Long.parseLong(
-                        principal.getName()
-                );
-
-        String sessionId =
-                accessor.getSessionId();
+        String sessionId = accessor.getSessionId();
 
         if (sessionId == null) {
             return;
         }
 
-        int synchronizedMessages =
-                messageDeliveryService
-                        .synchronizeUndeliveredMessages(
-                                userId,
-                                sessionId
-                        );
+        int synchronizedMessages = messageDeliveryService.synchronizeUndeliveredMessages(
+                userId,
+                sessionId
+        );
 
         messageDeliveryService.sendSyncResponse(
                 userId,
                 sessionId,
-                new SyncResponse(
-                        synchronizedMessages
-                )
+                new SyncResponse(synchronizedMessages)
         );
 
         /*

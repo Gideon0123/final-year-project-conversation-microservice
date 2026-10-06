@@ -1,14 +1,9 @@
 package com.example.CONVERSATION_SERVICE.controller;
 
-import com.example.CONVERSATION_SERVICE.dto.ConversationPresenceResponse;
-import com.example.CONVERSATION_SERVICE.dto.ConversationResponse;
-import com.example.CONVERSATION_SERVICE.dto.MessageResponse;
-import com.example.CONVERSATION_SERVICE.dto.UserPresenceResponse;
-import com.example.CONVERSATION_SERVICE.service.ConversationService;
-import com.example.CONVERSATION_SERVICE.service.MessageReceiptService;
-import com.example.CONVERSATION_SERVICE.service.MessageService;
+import com.example.CONVERSATION_SERVICE.dto.*;
+import com.example.CONVERSATION_SERVICE.entity.MessageReceipt;
+import com.example.CONVERSATION_SERVICE.service.*;
 
-import com.example.CONVERSATION_SERVICE.service.UserPresenceService;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.Page;
@@ -23,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.security.Principal;
 
 @RestController
-@RequestMapping("/conversations/{conversationId}/messages")
+@RequestMapping("/conversations")
 @RequiredArgsConstructor
 public class MessageController {
 
@@ -31,8 +26,9 @@ public class MessageController {
     private final MessageService messageService;
     private final ConversationService conversationService;
     private final MessageReceiptService messageReceiptService;
+    private final MessageDeliveryService messageDeliveryService;
 
-    @GetMapping
+    @GetMapping("/{conversationId}/messages")
     public ResponseEntity<Page<MessageResponse>> getMessages(
             @PathVariable Long conversationId,
 
@@ -58,9 +54,7 @@ public class MessageController {
         );
     }
 
-    @GetMapping(
-            "/conversations/{conversationId}/unread-count"
-    )
+    @GetMapping("/{conversationId}/unread-count")
     public ResponseEntity<?> getConversationUnreadCount(
             @PathVariable Long conversationId,
             Principal principal
@@ -84,9 +78,91 @@ public class MessageController {
         return ResponseEntity.ok(unread);
     }
 
-    @GetMapping(
-            "/conversations/{conversationId}/presence"
-    )
+    @PatchMapping("/{conversationId}/messages/{messageId}/delivered")
+    public ResponseEntity<?> markDelivered(
+            @PathVariable Long conversationId,
+            @PathVariable Long messageId,
+            Principal principal
+    ) {
+        Long userId = Long.parseLong(principal.getName());
+
+        MessageReceipt receipt = messageReceiptService.markDelivered(
+                conversationId,
+                messageId,
+                userId
+        );
+
+        messageDeliveryService.notifySenderOfStatus(receipt);
+
+        return ResponseEntity.ok(
+                new MessageStatusUpdate(
+                        messageId,
+                        conversationId,
+                        userId,
+                        receipt.getDeliveredAt(),
+                        receipt.getReadAt()
+                )
+        );
+    }
+
+    @PatchMapping("/{conversationId}/messages/{messageId}/read")
+    public ResponseEntity<?> markRead(
+            @PathVariable Long conversationId,
+            @PathVariable Long messageId,
+            Principal principal
+    ) {
+        Long userId = Long.parseLong(principal.getName());
+
+        MessageReceipt receipt = messageReceiptService.markRead(
+                conversationId,
+                messageId,
+                userId
+        );
+
+        messageDeliveryService.notifySenderOfStatus(receipt);
+
+        return ResponseEntity.ok(
+                new MessageStatusUpdate(
+                        messageId,
+                        conversationId,
+                        userId,
+                        receipt.getDeliveredAt(),
+                        receipt.getReadAt()
+                )
+        );
+    }
+
+    @PatchMapping("/{conversationId}/read")
+    public ResponseEntity<?> markConversationRead(
+            @PathVariable Long conversationId,
+            Principal principal
+    ) {
+        Long userId = Long.parseLong(principal.getName());
+
+        conversationService.verifyParticipant(
+                conversationId,
+                userId
+        );
+
+        ConversationReadResult result = messageReceiptService.markConversationRead(
+                conversationId,
+                userId
+        );
+
+        Long otherUserId = conversationService.getOtherParticipant(
+                conversationId,
+                userId
+        );
+
+        messageDeliveryService.notifySenderConversationRead(
+                result,
+                otherUserId
+        );
+
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/{conversationId}/presence")
     public ResponseEntity<?> getPresence(
             @PathVariable Long conversationId,
             Principal principal

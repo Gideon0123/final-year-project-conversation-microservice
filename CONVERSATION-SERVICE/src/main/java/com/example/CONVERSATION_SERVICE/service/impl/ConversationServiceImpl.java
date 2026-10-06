@@ -163,14 +163,12 @@ public class ConversationServiceImpl implements ConversationService {
         return conversations.stream()
                 .map(conversation -> {
 
-                    long unread =
-                            unreadCounts.getOrDefault(
-                                    conversation.getId(),
-                                    0L
-                            );
+                    long unread =unreadCounts.getOrDefault(
+                            conversation.getId(),
+                            0L
+                    );
 
-                    return conversationMapper
-                            .toResponse(conversation)
+                    return conversationMapper.toResponse(conversation)
                             .withUnreadCount(unread);
 
                 })
@@ -183,9 +181,7 @@ public class ConversationServiceImpl implements ConversationService {
             Long conversationId,
             Long userId
     ) {
-
-        Conversation conversation =
-                getConversation(conversationId);
+        Conversation conversation = getConversation(conversationId);
 
         return isParticipant(
                 conversation,
@@ -199,9 +195,7 @@ public class ConversationServiceImpl implements ConversationService {
             Long conversationId,
             Long userId
     ) {
-
-        Conversation conversation =
-                getConversation(conversationId);
+        Conversation conversation = getConversation(conversationId);
 
         verifyParticipant(
                 conversation,
@@ -213,10 +207,8 @@ public class ConversationServiceImpl implements ConversationService {
             Long conversationId
     ) {
 
-        return conversationRepository
-                .findById(conversationId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
+        return conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new ResourceNotFoundException(
                                 "Conversation with ID "
                                         + conversationId
                                         + " not found"
@@ -228,11 +220,7 @@ public class ConversationServiceImpl implements ConversationService {
             Conversation conversation,
             Long userId
     ) {
-
-        if (!isParticipant(
-                conversation,
-                userId
-        )) {
+        if (!isParticipant(conversation, userId)) {
 
             throw new ConversationAccessDeniedException(
                     "User " + userId
@@ -246,23 +234,15 @@ public class ConversationServiceImpl implements ConversationService {
             Conversation conversation,
             Long userId
     ) {
-
-        return conversation
-                .getParticipantOneId()
-                .equals(userId)
-                || conversation
-                .getParticipantTwoId()
-                .equals(userId);
+        return conversation.getParticipantOneId().equals(userId)
+                || conversation.getParticipantTwoId().equals(userId);
     }
 
     private void validateDifferentUsers(
             Long currentUserId,
             Long otherParticipantId
     ) {
-
-        if (currentUserId.equals(
-                otherParticipantId
-        )) {
+        if (currentUserId.equals(otherParticipantId)) {
 
             throw new UnauthorizedConversationAccessException(
                     "You cannot create a conversation with yourself"
