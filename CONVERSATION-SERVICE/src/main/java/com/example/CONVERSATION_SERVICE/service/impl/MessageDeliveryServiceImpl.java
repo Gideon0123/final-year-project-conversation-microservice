@@ -35,12 +35,9 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
             SendMessageResult result,
             Long senderId
     ) {
+        Long recipientId = result.recipientId();
 
-        Long recipientId =
-                result.recipientId();
-
-        MessageResponse message =
-                result.message();
+        MessageResponse message = result.message();
 
         /*
          * Always send the message back to the sender.
@@ -76,29 +73,21 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
             Long userId,
             String sessionId
     ) {
-
-        var undelivered =
-                messageReceiptService
-                        .getUndeliveredMessages(userId);
+        var undelivered = messageReceiptService.getUndeliveredMessages(userId);
 
         int sent = 0;
-
         for (MessageReceipt receipt : undelivered) {
 
-            Message message =
-                    receipt.getMessage();
+            Message message = receipt.getMessage();
 
-            MessageResponse response =
-                    messageMapper
-                            .toResponse(message)
-                            .withReceipt(
-                                    receipt.getUserId(),
-                                    receipt.getDeliveredAt(),
-                                    receipt.getReadAt()
-                            );
+            MessageResponse response = messageMapper.toResponse(message)
+                    .withReceipt(
+                            receipt.getUserId(),
+                            receipt.getDeliveredAt(),
+                            receipt.getReadAt()
+                    );
 
             try {
-
                 sendToUserSession(
                         userId,
                         sessionId,
@@ -223,42 +212,30 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
             boolean online
     ) {
 
-        var conversations =
-                conversationRepository
-                        .findUserConversations(userId);
+        var conversations = conversationRepository.findUserConversations(userId);
 
-        PresenceUpdate update =
-                new PresenceUpdate(
-                        userId,
-                        online,
-                        LocalDateTime.now()
-                );
+        PresenceUpdate update = new PresenceUpdate(
+                userId,
+                online,
+                LocalDateTime.now()
+        );
 
         for (Conversation conversation : conversations) {
 
             Long otherUserId;
 
-            if (conversation
-                    .getParticipantOneId()
-                    .equals(userId)) {
-
-                otherUserId =
-                        conversation
-                                .getParticipantTwoId();
+            if (conversation.getParticipantOneId().equals(userId)) {
+                otherUserId = conversation.getParticipantTwoId();
 
             } else {
-
-                otherUserId =
-                        conversation
-                                .getParticipantOneId();
+                otherUserId = conversation.getParticipantOneId();
             }
 
             /*
              * Only send presence changes to currently connected
              * counterparts.
              */
-            if (presenceService
-                    .isOnline(otherUserId)) {
+            if (presenceService.isOnline(otherUserId)) {
 
                 sendToUser(
                         otherUserId,
@@ -275,9 +252,7 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
             String sessionId,
             SyncResponse response
     ) {
-
         try {
-
             sendToUserSession(
                     userId,
                     sessionId,
@@ -300,18 +275,15 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
     public void notifySenderOfStatus(
             MessageReceipt receipt
     ) {
+        Message message = receipt.getMessage();
 
-        Message message =
-                receipt.getMessage();
-
-        MessageStatusUpdate update =
-                new MessageStatusUpdate(
-                        message.getId(),
-                        message.getConversation().getId(),
-                        receipt.getUserId(),
-                        receipt.getDeliveredAt(),
-                        receipt.getReadAt()
-                );
+        MessageStatusUpdate update = new MessageStatusUpdate(
+                message.getId(),
+                message.getConversation().getId(),
+                receipt.getUserId(),
+                receipt.getDeliveredAt(),
+                receipt.getReadAt()
+        );
 
         sendToUser(
                 message.getSenderId(),
@@ -325,15 +297,13 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
             ConversationReadResult result,
             Long senderId
     ) {
-
-        ConversationReadUpdate update =
-                new ConversationReadUpdate(
-                        result.conversationId(),
-                        result.readerId(),
-                        result.readAt(),
-                        result.messagesRead(),
-                        result.messageIds()
-                );
+        ConversationReadUpdate update = new ConversationReadUpdate(
+                result.conversationId(),
+                result.readerId(),
+                result.readAt(),
+                result.messagesRead(),
+                result.messageIds()
+        );
 
         sendToUser(
                 senderId,
@@ -347,13 +317,11 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
             String destination,
             Object payload
     ) {
-
         if (!presenceService.isOnline(userId)) {
             return;
         }
 
         try {
-
             messagingTemplate.convertAndSendToUser(
                     userId.toString(),
                     destination,
@@ -383,11 +351,9 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
             String destination,
             Object payload
     ) {
-
-        SimpMessageHeaderAccessor accessor =
-                SimpMessageHeaderAccessor.create(
-                        SimpMessageType.MESSAGE
-                );
+        SimpMessageHeaderAccessor accessor = SimpMessageHeaderAccessor.create(
+                SimpMessageType.MESSAGE
+        );
 
         accessor.setSessionId(sessionId);
         accessor.setLeaveMutable(true);

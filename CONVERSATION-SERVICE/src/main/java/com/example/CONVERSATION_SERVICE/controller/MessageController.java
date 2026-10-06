@@ -42,19 +42,16 @@ public class MessageController {
                     direction = Sort.Direction.DESC
             )
             Pageable pageable,
-
             Principal principal
     ) {
 
-        Long currentUserId =
-                extractUserId(principal);
+        Long currentUserId = extractUserId(principal);
 
-        Page<MessageResponse> response =
-                messageService.getMessages(
-                        conversationId,
-                        currentUserId,
-                        pageable
-                );
+        Page<MessageResponse> response = messageService.getMessages(
+                conversationId,
+                currentUserId,
+                pageable
+        );
 
         return ResponseEntity.ok(
                 response
@@ -68,32 +65,23 @@ public class MessageController {
             @PathVariable Long conversationId,
             Principal principal
     ) {
-
-        Long userId =
-                Long.parseLong(
-                        principal.getName()
-                );
+        Long userId = Long.parseLong(principal.getName());
 
         /*
          * Your ConversationService should validate that the user
          * belongs to the conversation before exposing its count.
          */
-        conversationService
-                .verifyParticipant(
-                        conversationId,
-                        userId
-                );
-
-        long unread =
-                messageReceiptService
-                        .getUnreadCount(
-                                conversationId,
-                                userId
-                        );
-
-        return ResponseEntity.ok(
-                unread
+        conversationService.verifyParticipant(
+                conversationId,
+                userId
         );
+
+        long unread = messageReceiptService.getUnreadCount(
+                conversationId,
+                userId
+        );
+
+        return ResponseEntity.ok(unread);
     }
 
     @GetMapping(
@@ -103,48 +91,28 @@ public class MessageController {
             @PathVariable Long conversationId,
             Principal principal
     ) {
+        Long currentUserId = Long.parseLong(principal.getName());
 
-        Long currentUserId =
-                Long.parseLong(
-                        principal.getName()
-                );
+        ConversationResponse conversation = conversationService.getConversationForUser(
+                conversationId,
+                currentUserId
+        );
 
-        ConversationResponse conversation =
-                conversationService
-                        .getConversationForUser(
-                                conversationId,
-                                currentUserId
-                        );
+        UserPresenceResponse first = new UserPresenceResponse(
+                conversation.participantOneId(),
+                presenceService.isOnline(conversation.participantOneId()),
+                presenceService.getActiveSessionCount(conversation.participantOneId())
+        );
 
-        UserPresenceResponse first =
-                new UserPresenceResponse(
-                        conversation.participantOneId(),
-                        presenceService.isOnline(
-                                conversation.participantOneId()
-                        ),
-                        presenceService.getActiveSessionCount(
-                                conversation.participantOneId()
-                        )
-                );
-
-        UserPresenceResponse second =
-                new UserPresenceResponse(
-                        conversation.participantTwoId(),
-                        presenceService.isOnline(
-                                conversation.participantTwoId()
-                        ),
-                        presenceService.getActiveSessionCount(
-                                conversation.participantTwoId()
-                        )
-                );
+        UserPresenceResponse second = new UserPresenceResponse(
+                conversation.participantTwoId(),
+                presenceService.isOnline(conversation.participantTwoId()),
+                presenceService.getActiveSessionCount(conversation.participantTwoId())
+        );
 
         return ResponseEntity.ok(
                 new ConversationPresenceResponse(
-                        conversationId,
-                        java.util.List.of(
-                                first,
-                                second
-                        )
+                        conversationId, java.util.List.of(first, second)
                 )
         );
     }
@@ -159,8 +127,6 @@ public class MessageController {
             );
         }
 
-        return Long.parseLong(
-                principal.getName()
-        );
+        return Long.parseLong(principal.getName());
     }
 }

@@ -44,37 +44,29 @@ public class MessageServiceImpl implements MessageService {
             Long senderId,
             String content
     ) {
-
-        Conversation conversation =
-                conversationRepository.findById(conversationId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Conversation with ID "
-                                                + conversationId
-                                                + " not found"
-                                )
-                        );
+        Conversation conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                                "Conversation with ID " + conversationId + " not found"
+                        )
+                );
 
         conversationService.verifyParticipant(
                 conversationId,
                 senderId
         );
 
-        Long recipientId =
-                determineRecipient(
-                        conversation,
-                        senderId
-                );
+        Long recipientId = determineRecipient(
+                conversation,
+                senderId
+        );
 
         boolean connected;
 
         try {
-
-            connected =
-                    collaborationClient.areConnected(
-                            senderId,
-                            recipientId
-                    );
+            connected = collaborationClient.areConnected(
+                    senderId,
+                    recipientId
+            );
 
             log.info(
                     "Collaboration check: sender={}, recipient={}, connected={}",
@@ -88,9 +80,7 @@ public class MessageServiceImpl implements MessageService {
             log.error(
                     "Collaboration Service call failed. status={}, url={}, body={}",
                     ex.status(),
-                    ex.request() != null
-                            ? ex.request().url()
-                            : "unknown",
+                    ex.request() != null ? ex.request().url() : "unknown",
                     ex.contentUTF8(),
                     ex
             );
@@ -111,15 +101,13 @@ public class MessageServiceImpl implements MessageService {
             );
         }
 
-        Message message =
-                Message.builder()
-                        .conversation(conversation)
-                        .senderId(senderId)
-                        .content(content)
-                        .build();
+        Message message = Message.builder()
+                .conversation(conversation)
+                .senderId(senderId)
+                .content(content)
+                .build();
 
-        Message savedMessage =
-                messageRepository.save(message);
+        Message savedMessage = messageRepository.save(message);
 
         /*
          * Create the recipient's persistent receipt.
@@ -135,8 +123,7 @@ public class MessageServiceImpl implements MessageService {
 
         conversation.touch();
 
-        MessageResponse response =
-                messageMapper.toResponse(savedMessage);
+        MessageResponse response = messageMapper.toResponse(savedMessage);
 
         return new SendMessageResult(
                 response,
@@ -151,16 +138,13 @@ public class MessageServiceImpl implements MessageService {
             Long currentUserId,
             Pageable pageable
     ) {
-
         conversationService.verifyParticipant(
                 conversationId,
                 currentUserId
         );
 
-        return messageRepository
-                .findByConversationId(
-                        conversationId,
-                        pageable
+        return messageRepository.findByConversationId(
+                conversationId, pageable
                 )
                 .map(messageMapper::toResponse);
     }
@@ -169,16 +153,11 @@ public class MessageServiceImpl implements MessageService {
             Conversation conversation,
             Long senderId
     ) {
+        if (conversation.getParticipantOneId().equals(senderId)) {
 
-        if (conversation
-                .getParticipantOneId()
-                .equals(senderId)) {
-
-            return conversation
-                    .getParticipantTwoId();
+            return conversation.getParticipantTwoId();
         }
 
-        return conversation
-                .getParticipantOneId();
+        return conversation.getParticipantOneId();
     }
 }
