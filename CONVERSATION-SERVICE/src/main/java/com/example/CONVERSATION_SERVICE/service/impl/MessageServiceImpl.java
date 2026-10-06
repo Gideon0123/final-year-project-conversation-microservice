@@ -12,6 +12,7 @@ import com.example.CONVERSATION_SERVICE.mapper.MessageMapper;
 import com.example.CONVERSATION_SERVICE.repository.ConversationRepository;
 import com.example.CONVERSATION_SERVICE.repository.MessageRepository;
 import com.example.CONVERSATION_SERVICE.service.ConversationService;
+import com.example.CONVERSATION_SERVICE.service.MessageReceiptService;
 import com.example.CONVERSATION_SERVICE.service.MessageService;
 
 import feign.FeignException;
@@ -32,6 +33,7 @@ public class MessageServiceImpl implements MessageService {
     private final MessageRepository messageRepository;
     private final ConversationRepository conversationRepository;
     private final ConversationService conversationService;
+    private final MessageReceiptService messageReceiptService;
     private final MessageMapper messageMapper;
     private final CollaborationClient collaborationClient;
 
@@ -43,12 +45,8 @@ public class MessageServiceImpl implements MessageService {
             String content
     ) {
 
-        /*
-         * 1. Conversation must exist.
-         */
         Conversation conversation =
-                conversationRepository
-                        .findById(conversationId)
+                conversationRepository.findById(conversationId)
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Conversation with ID "
@@ -57,27 +55,17 @@ public class MessageServiceImpl implements MessageService {
                                 )
                         );
 
-        /*
-         * 2. Authenticated sender must be a
-         *    participant.
-         */
         conversationService.verifyParticipant(
                 conversationId,
                 senderId
         );
 
-        /*
-         * 3. Determine the other participant.
-         */
         Long recipientId =
                 determineRecipient(
                         conversation,
                         senderId
                 );
 
-        /*
-         * 4. Verify collaboration relationship.
-         */
         boolean connected;
 
         try {
@@ -98,8 +86,7 @@ public class MessageServiceImpl implements MessageService {
         } catch (FeignException ex) {
 
             log.error(
-                    "Collaboration Service call failed. " +
-                            "status={}, url={}, body={}",
+                    "Collaboration Service call failed. status={}, url={}, body={}",
                     ex.status(),
                     ex.request() != null
                             ? ex.request().url()
@@ -115,21 +102,15 @@ public class MessageServiceImpl implements MessageService {
         }
 
         if (!connected) {
-
             throw new CollaborationRequiredException(
                     "Users "
                             + senderId
                             + " and "
                             + recipientId
-                            + " do not have "
-                            + "an active collaboration connection"
+                            + " must be connected before messaging"
             );
         }
 
-        /*
-         * 5. Save only after every authorization
-         *    check has passed.
-         */
         Message message =
                 Message.builder()
                         .conversation(conversation)
@@ -137,16 +118,25 @@ public class MessageServiceImpl implements MessageService {
                         .content(content)
                         .build();
 
-        Message savedMessage = messageRepository.save(
-                message
+        Message savedMessage =
+                messageRepository.save(message);
+
+        /*
+         * Create the recipient's persistent receipt.
+         *
+         * We intentionally do NOT mark it delivered yet.
+         * Delivery will be handled in the next stage
+         * when online presence is introduced.
+         */
+        messageReceiptService.createReceipt(
+                savedMessage,
+                recipientId
         );
 
         conversation.touch();
 
         MessageResponse response =
-                messageMapper.toResponse(
-                        savedMessage
-                );
+                messageMapper.toResponse(savedMessage);
 
         return new SendMessageResult(
                 response,
