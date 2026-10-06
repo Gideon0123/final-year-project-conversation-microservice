@@ -4,6 +4,7 @@ import com.example.CONVERSATION_SERVICE.dto.ConversationResponse;
 import com.example.CONVERSATION_SERVICE.dto.CreateConversationRequest;
 import com.example.CONVERSATION_SERVICE.service.ConversationService;
 
+import com.example.CONVERSATION_SERVICE.service.MessageReceiptService;
 import jakarta.validation.Valid;
 
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ import java.util.List;
 public class ConversationController {
 
     private final ConversationService conversationService;
+    private final MessageReceiptService messageReceiptService;
 
     @PostMapping
     public ResponseEntity<ConversationResponse> createConversation(
@@ -70,6 +72,23 @@ public class ConversationController {
 
         return ResponseEntity.ok(
                 response
+        );
+    }
+
+    @GetMapping("/unread-count")
+    public ResponseEntity<?> getUnreadCount(
+            Principal principal
+    ) {
+
+        Long userId =
+                Long.parseLong(
+                        principal.getName()
+                );
+
+        long unread = messageReceiptService.getUnreadCount(userId);
+
+        return ResponseEntity.ok(
+                unread
         );
     }
 

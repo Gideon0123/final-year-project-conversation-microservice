@@ -11,11 +11,13 @@ import com.example.CONVERSATION_SERVICE.mapper.ConversationMapper;
 import com.example.CONVERSATION_SERVICE.repository.ConversationRepository;
 import com.example.CONVERSATION_SERVICE.service.ConversationService;
 
+import com.example.CONVERSATION_SERVICE.service.MessageReceiptService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +27,7 @@ public class ConversationServiceImpl implements ConversationService {
     private final ConversationRepository conversationRepository;
     private final ConversationMapper conversationMapper;
     private final CollaborationClient collaborationClient;
+    private final MessageReceiptService messageReceiptService;
 
     @Override
     @Transactional
@@ -82,9 +85,8 @@ public class ConversationServiceImpl implements ConversationService {
                                 )
                         );
 
-        return conversationMapper.toResponse(
-                conversation
-        );
+        return conversationMapper.toResponse(conversation)
+                .withUnreadCount(0);
     }
 
     @Override
@@ -102,8 +104,15 @@ public class ConversationServiceImpl implements ConversationService {
                 currentUserId
         );
 
-        return conversationMapper.toResponse(
-                conversation
+        ConversationResponse response = conversationMapper.toResponse(conversation);
+
+        long unreadCount = messageReceiptService.getUnreadCount(
+                conversationId,
+                currentUserId
+        );
+
+        return response.withUnreadCount(
+                unreadCount
         );
     }
 
@@ -113,7 +122,6 @@ public class ConversationServiceImpl implements ConversationService {
             Long conversationId,
             Long currentUserId
     ) {
-
         Conversation conversation =
                 conversationRepository
                         .findById(conversationId)
@@ -130,16 +138,12 @@ public class ConversationServiceImpl implements ConversationService {
                 currentUserId
         );
 
-        if (conversation
-                .getParticipantOneId()
-                .equals(currentUserId)) {
+        if (conversation.getParticipantOneId().equals(currentUserId)) {
 
-            return conversation
-                    .getParticipantTwoId();
+            return conversation.getParticipantTwoId();
         }
 
-        return conversation
-                .getParticipantOneId();
+        return conversation.getParticipantOneId();
     }
 
     @Override
@@ -148,10 +152,28 @@ public class ConversationServiceImpl implements ConversationService {
             Long currentUserId
     ) {
 
-        return conversationRepository
-                .findUserConversations(currentUserId)
-                .stream()
-                .map(conversationMapper::toResponse)
+        List<Conversation> conversations = conversationRepository.findUserConversations(
+                currentUserId
+        );
+
+        Map<Long, Long> unreadCounts = messageReceiptService.getUnreadCountsByConversation(
+                currentUserId
+        );
+
+        return conversations.stream()
+                .map(conversation -> {
+
+                    long unread =
+                            unreadCounts.getOrDefault(
+                                    conversation.getId(),
+                                    0L
+                            );
+
+                    return conversationMapper
+                            .toResponse(conversation)
+                            .withUnreadCount(unread);
+
+                })
                 .toList();
     }
 

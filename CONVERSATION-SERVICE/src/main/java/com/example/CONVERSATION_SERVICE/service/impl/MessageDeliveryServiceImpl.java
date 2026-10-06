@@ -18,7 +18,6 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -267,6 +266,33 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
                         update
                 );
             }
+        }
+    }
+
+    @Override
+    public void sendSyncResponse(
+            Long userId,
+            String sessionId,
+            SyncResponse response
+    ) {
+
+        try {
+
+            sendToUserSession(
+                    userId,
+                    sessionId,
+                    "/queue/sync",
+                    response
+            );
+
+        } catch (MessageDeliveryException ex) {
+
+            log.debug(
+                    "Could not send sync response to user={} session={}",
+                    userId,
+                    sessionId,
+                    ex
+            );
         }
     }
 

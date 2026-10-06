@@ -2,10 +2,7 @@ package com.example.CONVERSATION_SERVICE.controller;
 
 import com.example.CONVERSATION_SERVICE.dto.*;
 import com.example.CONVERSATION_SERVICE.entity.MessageReceipt;
-import com.example.CONVERSATION_SERVICE.exception.CollaborationRequiredException;
-import com.example.CONVERSATION_SERVICE.exception.CollaborationServiceUnavailableException;
-import com.example.CONVERSATION_SERVICE.exception.ConversationAccessDeniedException;
-import com.example.CONVERSATION_SERVICE.exception.ResourceNotFoundException;
+import com.example.CONVERSATION_SERVICE.service.ConversationService;
 import com.example.CONVERSATION_SERVICE.service.MessageDeliveryService;
 import com.example.CONVERSATION_SERVICE.service.MessageReceiptService;
 import com.example.CONVERSATION_SERVICE.service.MessageService;
@@ -24,6 +21,7 @@ public class MessageStompController {
 
     private final MessageService messageService;
     private final MessageReceiptService messageReceiptService;
+    private final ConversationService conversationService;
     private final MessageDeliveryService messageDeliveryService;
 
     @MessageMapping(
@@ -35,17 +33,15 @@ public class MessageStompController {
             Principal principal
     ) {
 
-        Long senderId =
-                Long.parseLong(
-                        principal.getName()
-                );
+        Long senderId = conversationService.getOtherParticipant(
+                conversationId, Long.parseLong(principal.getName())
+        );
 
-        SendMessageResult result =
-                messageService.sendMessage(
-                        conversationId,
-                        senderId,
-                        request.content()
-                );
+        SendMessageResult result = messageService.sendMessage(
+                conversationId,
+                senderId,
+                request.content()
+        );
 
         /*
          * Persisted message already exists.
@@ -148,21 +144,16 @@ public class MessageStompController {
          * MessageReceiptService can return this directly later;
          * for now derive it from the first message if available.
          */
-        Long senderId =
-                result.messageIds().isEmpty()
-                        ? null
-                        : messageService
-                        .findSenderForConversationRead(
-                                conversationId,
-                                userId
-                        );
+        Long senderId = conversationService.getOtherParticipant(
+                conversationId,
+                userId
+        );
 
         if (senderId != null) {
-            messageDeliveryService
-                    .notifySenderConversationRead(
-                            result,
-                            senderId
-                    );
+            messageDeliveryService.notifySenderConversationRead(
+                    result,
+                    senderId
+            );
         }
     }
 
@@ -191,13 +182,21 @@ public class MessageStompController {
                                 sessionId
                         );
 
+        messageDeliveryService.sendSyncResponse(
+                userId,
+                sessionId,
+                new SyncResponse(
+                        synchronizedMessages
+                )
+        );
+
         /*
          * Optional synchronization summary.
          */
-        SyncResponse response =
-                new SyncResponse(
-                        synchronizedMessages
-                );
+        SyncResponse response = new SyncResponse(
+                synchronizedMessages
+        );
+
 
         /*
          * This can be sent to the specific reconnecting session.

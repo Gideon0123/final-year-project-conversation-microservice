@@ -2,6 +2,7 @@ package com.example.CONVERSATION_SERVICE.service;
 
 import com.example.CONVERSATION_SERVICE.dto.ConversationReadResult;
 import com.example.CONVERSATION_SERVICE.dto.SendMessageResult;
+import com.example.CONVERSATION_SERVICE.dto.SyncResponse;
 import com.example.CONVERSATION_SERVICE.entity.MessageReceipt;
 
 public interface MessageDeliveryService {
@@ -28,5 +29,11 @@ public interface MessageDeliveryService {
     void publishPresenceUpdate(
             Long userId,
             boolean online
+    );
+
+    void sendSyncResponse(
+            Long userId,
+            String sessionId,
+            SyncResponse response
     );
 }
