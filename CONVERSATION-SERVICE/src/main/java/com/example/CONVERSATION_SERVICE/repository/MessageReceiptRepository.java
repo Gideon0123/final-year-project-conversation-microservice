@@ -125,8 +125,7 @@ public interface MessageReceiptRepository
               AND r.readAt IS NULL
             GROUP BY r.message.conversation.id
             """)
-    List<ConversationUnreadCountProjection>
-    findUnreadCountsByUser(
+    List<ConversationUnreadCountProjection> findUnreadCountsByUser(
             @Param("userId")
             Long userId
     );
