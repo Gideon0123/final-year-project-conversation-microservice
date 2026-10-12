@@ -1,10 +1,13 @@
 package com.example.CONVERSATION_SERVICE.controller;
 
+import com.example.CONVERSATION_SERVICE.dto.ApiResponse;
 import com.example.CONVERSATION_SERVICE.dto.ConversationResponse;
 import com.example.CONVERSATION_SERVICE.dto.CreateConversationRequest;
 import com.example.CONVERSATION_SERVICE.service.ConversationService;
 
 import com.example.CONVERSATION_SERVICE.service.MessageReceiptService;
+import com.example.CONVERSATION_SERVICE.utils.TraceIdUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 import lombok.RequiredArgsConstructor;
@@ -26,8 +29,9 @@ public class ConversationController {
     private final MessageReceiptService messageReceiptService;
 
     @PostMapping
-    public ResponseEntity<ConversationResponse> createConversation(
+    public ResponseEntity<ApiResponse<ConversationResponse>> createConversation(
             @Valid @RequestBody CreateConversationRequest request,
+            HttpServletRequest httpRequest,
             Principal principal
     ) {
         Long currentUserId = extractUserId(principal);
@@ -37,9 +41,18 @@ public class ConversationController {
                 request.participantId()
         );
 
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(response);
+        return ResponseEntity.ok(
+                ApiResponse.<ConversationResponse>builder()
+                        .success(true)
+                        .message("Conversation created successfully")
+                        .status(HttpStatus.CREATED.value())
+                        .data(response)
+                        .errors(null)
+                        .path(httpRequest.getRequestURI())
+                        .traceId(TraceIdUtil.generate())
+                        .timestamp(java.time.LocalDateTime.now())
+                        .build()
+        );
     }
 
     @GetMapping
