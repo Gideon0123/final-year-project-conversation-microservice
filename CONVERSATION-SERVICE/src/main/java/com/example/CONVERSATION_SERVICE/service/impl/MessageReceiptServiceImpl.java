@@ -43,21 +43,19 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
         }
 
         Optional<MessageReceipt> existing =
-                messageReceiptRepository
-                        .findByMessageIdAndUserId(
-                                message.getId(),
-                                recipientId
-                        );
+                messageReceiptRepository.findByMessageIdAndUserId(
+                        message.getId(),
+                        recipientId
+                );
 
         if (existing.isPresent()) {
             return existing.get();
         }
 
-        MessageReceipt receipt =
-                MessageReceipt.builder()
-                        .message(message)
-                        .userId(recipientId)
-                        .build();
+        MessageReceipt receipt = MessageReceipt.builder()
+                .message(message)
+                .userId(recipientId)
+                .build();
 
         return messageReceiptRepository.save(receipt);
     }
@@ -68,11 +66,10 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
             Long messageId,
             Long userId
     ) {
-        return messageReceiptRepository
-                .findByMessageIdAndUserId(
-                        messageId,
-                        userId
-                );
+        return messageReceiptRepository.findByMessageIdAndUserId(
+                messageId,
+                userId
+        );
     }
 
     @Override
@@ -82,17 +79,13 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
             Long userId
     ) {
 
-        MessageReceipt receipt =
-                messageReceiptRepository
-                        .findByMessageIdAndUserId(
-                                messageId,
-                                userId
+        MessageReceipt receipt = messageReceiptRepository.findByMessageIdAndUserId(
+                messageId, userId
+                )
+                .orElseThrow(() -> new ResourceNotFoundException(
+                                "Message receipt not found"
                         )
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Message receipt not found"
-                                )
-                        );
+                );
 
         Message message = receipt.getMessage();
 
@@ -195,8 +188,7 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
     public long getUnreadCount(
             Long userId
     ) {
-        return messageReceiptRepository
-                .countUnreadByUser(userId);
+        return messageReceiptRepository.countUnreadByUser(userId);
     }
 
     @Override
@@ -217,11 +209,8 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
     public Map<Long, Long> getUnreadCountsByConversation(
             Long userId
     ) {
-
-        List<ConversationUnreadCountProjection>
-                projections =
-                messageReceiptRepository
-                        .findUnreadCountsByUser(userId);
+        List<ConversationUnreadCountProjection> projections =
+                messageReceiptRepository.findUnreadCountsByUser(userId);
 
         Map<Long, Long> result = new HashMap<>();
 

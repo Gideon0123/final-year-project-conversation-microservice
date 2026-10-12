@@ -2,20 +2,20 @@ package com.example.CONVERSATION_SERVICE.controller;
 
 import com.example.CONVERSATION_SERVICE.dto.*;
 import com.example.CONVERSATION_SERVICE.entity.MessageReceipt;
+import com.example.CONVERSATION_SERVICE.payload.PagedResponse;
 import com.example.CONVERSATION_SERVICE.service.*;
 
+import com.example.CONVERSATION_SERVICE.utils.TraceIdUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
-
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/conversations")
@@ -29,28 +29,45 @@ public class MessageController {
     private final MessageDeliveryService messageDeliveryService;
 
     @GetMapping("/{conversationId}/messages")
-    public ResponseEntity<Page<MessageResponse>> getMessages(
+    public ResponseEntity<ApiResponse<PagedResponse<MessageResponse>>> getMessages(
             @PathVariable Long conversationId,
-
-            @PageableDefault(
-                    size = 30,
-                    sort = "createdAt",
-                    direction = Sort.Direction.DESC
-            )
-            Pageable pageable,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDirection,
+            HttpServletRequest request,
             Principal principal
     ) {
-
         Long currentUserId = extractUserId(principal);
-
-        Page<MessageResponse> response = messageService.getMessages(
+        int adjustedPage = Math.max(page - 1, 0);
+        PagedResponse<MessageResponse> messages = messageService.getMessages(
                 conversationId,
                 currentUserId,
-                pageable
+                adjustedPage, size, sortBy, sortDirection
         );
 
+        PagedResponse<MessageResponse> response =
+                PagedResponse.<MessageResponse>builder()
+                        .content(messages.getContent())
+                        .size(messages.getSize())
+                        .page(messages.getPage())
+                        .first(messages.isFirst())
+                        .last(messages.isLast())
+                        .totalElements(messages.getTotalElements())
+                        .totalPages(messages.getTotalPages())
+                        .build();
+
         return ResponseEntity.ok(
-                response
+                ApiResponse.<PagedResponse<MessageResponse>>builder()
+                        .success(true)
+                        .message("Messages fetched successfully")
+                        .status(HttpStatus.OK.value())
+                        .data(response)
+                        .errors(null)
+                        .path(request.getRequestURI())
+                        .traceId(TraceIdUtil.generate())
+                        .timestamp(LocalDateTime.now())
+                        .build()
         );
     }
 

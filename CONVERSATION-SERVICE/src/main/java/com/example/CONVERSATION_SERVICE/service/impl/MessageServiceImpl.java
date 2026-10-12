@@ -9,6 +9,7 @@ import com.example.CONVERSATION_SERVICE.exception.CollaborationServiceUnavailabl
 import com.example.CONVERSATION_SERVICE.exception.ResourceNotFoundException;
 import com.example.CONVERSATION_SERVICE.feign.CollaborationClient;
 import com.example.CONVERSATION_SERVICE.mapper.MessageMapper;
+import com.example.CONVERSATION_SERVICE.payload.PagedResponse;
 import com.example.CONVERSATION_SERVICE.repository.ConversationRepository;
 import com.example.CONVERSATION_SERVICE.repository.MessageRepository;
 import com.example.CONVERSATION_SERVICE.service.ConversationService;
@@ -20,7 +21,9 @@ import lombok.RequiredArgsConstructor;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +39,19 @@ public class MessageServiceImpl implements MessageService {
     private final MessageReceiptService messageReceiptService;
     private final MessageMapper messageMapper;
     private final CollaborationClient collaborationClient;
+
+    private Pageable buildPageable(
+            int page,
+            int size,
+            String sortBy,
+            String sortDirection
+    ) {
+        Sort sort = sortDirection.equalsIgnoreCase("desc")
+                ? Sort.by(sortBy).descending()
+                : Sort.by(sortBy).ascending();
+
+        return PageRequest.of(page, size, sort);
+    }
 
     @Override
     @Transactional
@@ -133,20 +149,25 @@ public class MessageServiceImpl implements MessageService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<MessageResponse> getMessages(
+    public PagedResponse<MessageResponse> getMessages(
             Long conversationId,
             Long currentUserId,
-            Pageable pageable
+            int page,
+            int size,
+            String sortBy,
+            String sortDirection
     ) {
+        Pageable pageable = buildPageable(page, size, sortBy, sortDirection);
         conversationService.verifyParticipant(
                 conversationId,
                 currentUserId
         );
 
-        return messageRepository.findByConversationId(
+        Page<MessageResponse> messages = messageRepository.findByConversationId(
                 conversationId, pageable
-                )
-                .map(messageMapper::toResponse);
+        ).map(messageMapper::toResponse);
+
+        return new PagedResponse<>(messages);
     }
 
     private Long determineRecipient(

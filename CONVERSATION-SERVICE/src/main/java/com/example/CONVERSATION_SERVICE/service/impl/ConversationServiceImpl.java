@@ -13,6 +13,9 @@ import com.example.CONVERSATION_SERVICE.service.ConversationService;
 
 import com.example.CONVERSATION_SERVICE.service.MessageReceiptService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +32,19 @@ public class ConversationServiceImpl implements ConversationService {
     private final CollaborationClient collaborationClient;
     private final MessageReceiptService messageReceiptService;
 
+    private Pageable buildPageable(
+            int page,
+            int size,
+            String sortBy,
+            String sortDirection
+    ) {
+        Sort sort = sortDirection.equalsIgnoreCase("desc")
+                ? Sort.by(sortBy).descending()
+                : Sort.by(sortBy).ascending();
+
+        return PageRequest.of(page, size, sort);
+    }
+
     @Override
     @Transactional
     public ConversationResponse createConversation(
@@ -40,11 +56,10 @@ public class ConversationServiceImpl implements ConversationService {
                 otherParticipantId
         );
 
-        boolean connected =
-                collaborationClient.areConnected(
-                        currentUserId,
-                        otherParticipantId
-                );
+        boolean connected = collaborationClient.areConnected(
+                currentUserId,
+                otherParticipantId
+        );
 
         if (!connected) {
 
@@ -54,17 +69,15 @@ public class ConversationServiceImpl implements ConversationService {
             );
         }
 
-        Long participantOneId =
-                Math.min(
-                        currentUserId,
-                        otherParticipantId
-                );
+        Long participantOneId = Math.min(
+                currentUserId,
+                otherParticipantId
+        );
 
-        Long participantTwoId =
-                Math.max(
-                        currentUserId,
-                        otherParticipantId
-                );
+        Long participantTwoId = Math.max(
+                currentUserId,
+                otherParticipantId
+        );
 
         Conversation conversation =
                 conversationRepository
@@ -85,8 +98,7 @@ public class ConversationServiceImpl implements ConversationService {
                                 )
                         );
 
-        return conversationMapper.toResponse(conversation)
-                .withUnreadCount(0);
+        return conversationMapper.toResponse(conversation).withUnreadCount(0);
     }
 
     @Override
@@ -95,15 +107,8 @@ public class ConversationServiceImpl implements ConversationService {
             Long conversationId,
             Long currentUserId
     ) {
-
-        Conversation conversation =
-                getConversation(conversationId);
-
-        verifyParticipant(
-                conversation,
-                currentUserId
-        );
-
+        Conversation conversation = getConversation(conversationId);
+        verifyParticipant(conversation, currentUserId);
         ConversationResponse response = conversationMapper.toResponse(conversation);
 
         long unreadCount = messageReceiptService.getUnreadCount(
@@ -111,9 +116,7 @@ public class ConversationServiceImpl implements ConversationService {
                 currentUserId
         );
 
-        return response.withUnreadCount(
-                unreadCount
-        );
+        return response.withUnreadCount(unreadCount);
     }
 
     @Override
@@ -123,20 +126,15 @@ public class ConversationServiceImpl implements ConversationService {
             Long currentUserId
     ) {
         Conversation conversation =
-                conversationRepository
-                        .findById(conversationId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
+                conversationRepository.findById(conversationId)
+                        .orElseThrow(() -> new ResourceNotFoundException(
                                         "Conversation with ID "
                                                 + conversationId
                                                 + " not found"
                                 )
                         );
 
-        verifyParticipant(
-                conversation,
-                currentUserId
-        );
+        verifyParticipant(conversation, currentUserId);
 
         if (conversation.getParticipantOneId().equals(currentUserId)) {
 

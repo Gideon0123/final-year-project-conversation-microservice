@@ -71,8 +71,9 @@ public class ConversationController {
     }
 
     @GetMapping("/{conversationId}")
-    public ResponseEntity<ConversationResponse> getConversation(
+    public ResponseEntity<ApiResponse<ConversationResponse>> getConversation(
             @PathVariable Long conversationId,
+            HttpServletRequest request,
             Principal principal
     ) {
         Long currentUserId = extractUserId(principal);
@@ -83,20 +84,38 @@ public class ConversationController {
         );
 
         return ResponseEntity.ok(
-                response
+                ApiResponse.<ConversationResponse>builder()
+                        .success(true)
+                        .message("Conversation Fetched successfully")
+                        .status(HttpStatus.OK.value())
+                        .data(response)
+                        .errors(null)
+                        .path(request.getRequestURI())
+                        .traceId(TraceIdUtil.generate())
+                        .timestamp(java.time.LocalDateTime.now())
+                        .build()
         );
     }
 
     @GetMapping("/unread-count")
-    public ResponseEntity<?> getUnreadCount(
-            Principal principal
+    public ResponseEntity<ApiResponse<Long>> getUnreadCount(
+            Principal principal,
+            HttpServletRequest request
     ) {
         Long userId = Long.parseLong(principal.getName());
-
         long unread = messageReceiptService.getUnreadCount(userId);
 
         return ResponseEntity.ok(
-                unread
+                ApiResponse.<Long>builder()
+                        .success(true)
+                        .message("Unread Count Fetched successfully")
+                        .status(HttpStatus.OK.value())
+                        .data(unread)
+                        .errors(null)
+                        .path(request.getRequestURI())
+                        .traceId(TraceIdUtil.generate())
+                        .timestamp(java.time.LocalDateTime.now())
+                        .build()
         );
     }
 

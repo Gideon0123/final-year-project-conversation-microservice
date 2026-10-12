@@ -2,6 +2,7 @@ package com.example.CONVERSATION_SERVICE.service;
 
 import com.example.CONVERSATION_SERVICE.dto.MessageResponse;
 import com.example.CONVERSATION_SERVICE.dto.SendMessageResult;
+import com.example.CONVERSATION_SERVICE.payload.PagedResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -13,9 +14,12 @@ public interface MessageService {
             String content
     );
 
-    Page<MessageResponse> getMessages(
+    PagedResponse<MessageResponse> getMessages(
             Long conversationId,
             Long currentUserId,
-            Pageable pageable
+            int page,
+            int size,
+            String sortBy,
+            String sortDirection
     );
 }
