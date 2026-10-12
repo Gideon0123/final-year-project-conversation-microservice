@@ -204,7 +204,6 @@ public class ConversationServiceImpl implements ConversationService {
     private Conversation getConversation(
             Long conversationId
     ) {
-
         return conversationRepository.findById(conversationId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                                 "Conversation with ID "

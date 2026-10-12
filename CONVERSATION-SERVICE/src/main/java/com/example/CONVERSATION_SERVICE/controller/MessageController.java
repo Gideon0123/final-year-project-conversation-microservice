@@ -31,7 +31,7 @@ public class MessageController {
     @GetMapping("/{conversationId}/messages")
     public ResponseEntity<ApiResponse<PagedResponse<MessageResponse>>> getMessages(
             @PathVariable Long conversationId,
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDirection,
@@ -72,16 +72,12 @@ public class MessageController {
     }
 
     @GetMapping("/{conversationId}/unread-count")
-    public ResponseEntity<?> getConversationUnreadCount(
+    public ResponseEntity<ApiResponse<Long>> getConversationUnreadCount(
             @PathVariable Long conversationId,
+            HttpServletRequest request,
             Principal principal
     ) {
         Long userId = Long.parseLong(principal.getName());
-
-        /*
-         * Your ConversationService should validate that the user
-         * belongs to the conversation before exposing its count.
-         */
         conversationService.verifyParticipant(
                 conversationId,
                 userId
@@ -92,13 +88,25 @@ public class MessageController {
                 userId
         );
 
-        return ResponseEntity.ok(unread);
+        return ResponseEntity.ok(
+                ApiResponse.<Long>builder()
+                        .success(true)
+                        .message("Unread Count Fetched successfully")
+                        .status(HttpStatus.OK.value())
+                        .data(unread)
+                        .errors(null)
+                        .path(request.getRequestURI())
+                        .traceId(TraceIdUtil.generate())
+                        .timestamp(java.time.LocalDateTime.now())
+                        .build()
+        );
     }
 
     @PatchMapping("/{conversationId}/messages/{messageId}/delivered")
-    public ResponseEntity<?> markDelivered(
+    public ResponseEntity<ApiResponse<MessageStatusUpdate>> markDelivered(
             @PathVariable Long conversationId,
             @PathVariable Long messageId,
+            HttpServletRequest request,
             Principal principal
     ) {
         Long userId = Long.parseLong(principal.getName());
@@ -109,23 +117,35 @@ public class MessageController {
                 userId
         );
 
+        MessageStatusUpdate update = new MessageStatusUpdate(
+                messageId,
+                conversationId,
+                userId,
+                receipt.getDeliveredAt(),
+                receipt.getReadAt()
+        );
+
         messageDeliveryService.notifySenderOfStatus(receipt);
 
         return ResponseEntity.ok(
-                new MessageStatusUpdate(
-                        messageId,
-                        conversationId,
-                        userId,
-                        receipt.getDeliveredAt(),
-                        receipt.getReadAt()
-                )
+                ApiResponse.<MessageStatusUpdate>builder()
+                        .success(true)
+                        .message("Message marked as delivered")
+                        .status(HttpStatus.OK.value())
+                        .data(update)
+                        .errors(null)
+                        .path(request.getRequestURI())
+                        .traceId(TraceIdUtil.generate())
+                        .timestamp(java.time.LocalDateTime.now())
+                        .build()
         );
     }
 
     @PatchMapping("/{conversationId}/messages/{messageId}/read")
-    public ResponseEntity<?> markRead(
+    public ResponseEntity<ApiResponse<MessageStatusUpdate>> markRead(
             @PathVariable Long conversationId,
             @PathVariable Long messageId,
+            HttpServletRequest request,
             Principal principal
     ) {
         Long userId = Long.parseLong(principal.getName());
@@ -136,22 +156,34 @@ public class MessageController {
                 userId
         );
 
+        MessageStatusUpdate update = new MessageStatusUpdate(
+                messageId,
+                conversationId,
+                userId,
+                receipt.getDeliveredAt(),
+                receipt.getReadAt()
+        );
+
         messageDeliveryService.notifySenderOfStatus(receipt);
 
         return ResponseEntity.ok(
-                new MessageStatusUpdate(
-                        messageId,
-                        conversationId,
-                        userId,
-                        receipt.getDeliveredAt(),
-                        receipt.getReadAt()
-                )
+                ApiResponse.<MessageStatusUpdate>builder()
+                        .success(true)
+                        .message("Message marked as read")
+                        .status(HttpStatus.OK.value())
+                        .data(update)
+                        .errors(null)
+                        .path(request.getRequestURI())
+                        .traceId(TraceIdUtil.generate())
+                        .timestamp(java.time.LocalDateTime.now())
+                        .build()
         );
     }
 
     @PatchMapping("/{conversationId}/read")
-    public ResponseEntity<?> markConversationRead(
+    public ResponseEntity<ApiResponse<ConversationReadResult>> markConversationRead(
             @PathVariable Long conversationId,
+            HttpServletRequest request,
             Principal principal
     ) {
         Long userId = Long.parseLong(principal.getName());
@@ -176,12 +208,24 @@ public class MessageController {
                 otherUserId
         );
 
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(
+                ApiResponse.<ConversationReadResult>builder()
+                        .success(true)
+                        .message("Conversation marked as read")
+                        .status(HttpStatus.OK.value())
+                        .data(result)
+                        .errors(null)
+                        .path(request.getRequestURI())
+                        .traceId(TraceIdUtil.generate())
+                        .timestamp(java.time.LocalDateTime.now())
+                        .build()
+        );
     }
 
     @GetMapping("/{conversationId}/presence")
-    public ResponseEntity<?> getPresence(
+    public ResponseEntity<ApiResponse<ConversationPresenceResponse>> getPresence(
             @PathVariable Long conversationId,
+            HttpServletRequest request,
             Principal principal
     ) {
         Long currentUserId = Long.parseLong(principal.getName());
@@ -203,10 +247,21 @@ public class MessageController {
                 presenceService.getActiveSessionCount(conversation.participantTwoId())
         );
 
+        ConversationPresenceResponse response = new ConversationPresenceResponse(
+                conversationId, java.util.List.of(first, second)
+        );
+
         return ResponseEntity.ok(
-                new ConversationPresenceResponse(
-                        conversationId, java.util.List.of(first, second)
-                )
+                ApiResponse.<ConversationPresenceResponse>builder()
+                        .success(true)
+                        .message("Conversation presence information")
+                        .status(HttpStatus.OK.value())
+                        .data(response)
+                        .errors(null)
+                        .path(request.getRequestURI())
+                        .traceId(TraceIdUtil.generate())
+                        .timestamp(java.time.LocalDateTime.now())
+                        .build()
         );
     }
 

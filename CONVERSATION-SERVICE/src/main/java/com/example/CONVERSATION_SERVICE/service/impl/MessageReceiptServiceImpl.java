@@ -109,18 +109,15 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
             Long messageId,
             Long userId
     ) {
-
-        MessageReceipt receipt =
-                messageReceiptRepository
-                        .findByMessageIdAndUserId(
-                                messageId,
-                                userId
+        MessageReceipt receipt = messageReceiptRepository
+                .findByMessageIdAndUserId(
+                        messageId,
+                        userId
+                )
+                .orElseThrow(() -> new ResourceNotFoundException(
+                                "Message receipt not found"
                         )
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Message receipt not found"
-                                )
-                        );
+                );
 
         Message message = receipt.getMessage();
 
@@ -133,10 +130,6 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
             );
         }
 
-        /*
-         * Reading a message necessarily means it has
-         * been delivered.
-         */
         receipt.markRead();
 
         return messageReceiptRepository.save(receipt);
@@ -147,16 +140,13 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
             Long conversationId,
             Long userId
     ) {
+        List<MessageReceipt> unread = messageReceiptRepository
+                .findUnreadMessages(
+                        conversationId,
+                        userId
+                );
 
-        List<MessageReceipt> unread =
-                messageReceiptRepository
-                        .findUnreadMessages(
-                                conversationId,
-                                userId
-                        );
-
-        LocalDateTime readAt =
-                LocalDateTime.now();
+        LocalDateTime readAt = LocalDateTime.now();
 
         for (MessageReceipt receipt : unread) {
             receipt.markDelivered();
@@ -197,11 +187,10 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
             Long conversationId,
             Long userId
     ) {
-        return messageReceiptRepository
-                .countUnreadByConversation(
-                        conversationId,
-                        userId
-                );
+        return messageReceiptRepository.countUnreadByConversation(
+                conversationId,
+                userId
+        );
     }
 
     @Override
@@ -214,8 +203,7 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
 
         Map<Long, Long> result = new HashMap<>();
 
-        for (ConversationUnreadCountProjection projection
-                : projections) {
+        for (ConversationUnreadCountProjection projection : projections) {
 
             result.put(
                     projection.getConversationId(),
@@ -231,12 +219,6 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
     public MessageReceipt findReceiptForStatusNotification(
             Long messageId
     ) {
-        /*
-         * There is exactly one receipt per message because every
-         * private message has exactly one recipient.
-         *
-         * We therefore need a repository lookup by message ID.
-         */
         return messageReceiptRepository.findByMessageId(messageId).orElse(null);
     }
 
@@ -245,7 +227,6 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
     public List<MessageReceipt> getUndeliveredMessages(
             Long userId
     ) {
-        return messageReceiptRepository
-                .findUndeliveredMessages(userId);
+        return messageReceiptRepository.findUndeliveredMessages(userId);
     }
 }

@@ -93,7 +93,6 @@ public class MessageStompController {
             @DestinationVariable Long messageId,
             Principal principal
     ) {
-
         Long userId = Long.parseLong(principal.getName());
 
         MessageReceipt receipt = messageReceiptService.markRead(
@@ -114,7 +113,6 @@ public class MessageStompController {
             @DestinationVariable Long conversationId,
             Principal principal
     ) {
-
         Long userId = Long.parseLong(principal.getName());
 
         ConversationReadResult result = messageReceiptService.markConversationRead(
