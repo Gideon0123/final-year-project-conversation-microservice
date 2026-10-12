@@ -5,9 +5,7 @@ import java.time.LocalDateTime;
 public record StompErrorResponse(
 
         String code,
-
         String message,
-
         LocalDateTime timestamp
 ) {
 }

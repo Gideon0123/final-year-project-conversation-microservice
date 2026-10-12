@@ -1,19 +1,23 @@
 package com.example.CONVERSATION_SERVICE.config;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
 @Configuration
 @EnableWebSocketMessageBroker
-public class WebSocketConfig
-        implements WebSocketMessageBrokerConfigurer {
+@RequiredArgsConstructor
+public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
-    @Value("${app.websocket.allowed-origins}")
-    private String[] allowedOrigins;
+    private final TaskScheduler stompTaskScheduler;
+
+    @Value("${app.websocket.allowed-origins:http://localhost:3000}")
+    private String allowedOrigins;
 
     @Override
     public void configureMessageBroker(
@@ -21,9 +25,15 @@ public class WebSocketConfig
     ) {
 
         registry.enableSimpleBroker(
-                "/topic",
-                "/queue"
-        );
+                        "/topic",
+                        "/queue"
+                )
+                .setHeartbeatValue(
+                        new long[]{10_000, 20_000}
+                )
+                .setTaskScheduler(
+                        stompTaskScheduler
+                );
 
         registry.setApplicationDestinationPrefixes(
                 "/app"
@@ -43,7 +53,7 @@ public class WebSocketConfig
                         "/conversation/ws"
                 )
                 .setAllowedOriginPatterns(
-                        allowedOrigins
+                        allowedOrigins.split(",")
                 );
     }
 }
