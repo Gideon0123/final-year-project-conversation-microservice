@@ -78,9 +78,8 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
             Long messageId,
             Long userId
     ) {
-
         MessageReceipt receipt = messageReceiptRepository.findByMessageIdAndUserId(
-                messageId, userId
+                        messageId, userId
                 )
                 .orElseThrow(() -> new ResourceNotFoundException(
                                 "Message receipt not found"
